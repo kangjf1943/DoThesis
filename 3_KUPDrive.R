@@ -127,9 +127,9 @@ fun_regsubset(all_qua_div, "richness")
 fitbest$plant_richness <- 
   lm(richness ~ dist_ctr + popttotal + 
        agriculture + residential + multi_family_residential + 
-       commercial_industrial, data = all_qua_div)
-fitbest$plant_richness <- 
-  fun_lmdf(fitbest$plant_richness)[c("variable", "result")] %>% 
+       commercial_industrial, data = all_qua_div) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>%
   rename(plant_richness = result)
 
 fun_regsubset(tree_qua_all, "richness")
@@ -137,17 +137,17 @@ fitbest$tree_richness <-
   lm(richness ~ land_price + popttotal + 
        agriculture + multi_family_residential + 
        commercial_industrial + institutional + transportation, 
-     data = tree_qua_all)
-fitbest$tree_richness <- 
-  fun_lmdf(fitbest$tree_richness)[c("variable", "result")] %>% 
+     data = tree_qua_all) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>% 
   rename(tree_richness = result)
 
 fun_regsubset(shrub_qua_all, "richness")
 fitbest$shrub_richness <- 
   lm(richness ~ residential + multi_family_residential + commercial_industrial, 
-     data = shrub_qua_all)
-fitbest$shrub_richness <- 
-  fun_lmdf(fitbest$shrub_richness)[c("variable", "result")] %>% 
+     data = shrub_qua_all) %>%
+  fun_lmdf() %>% 
+  select(variable, result) %>%
   rename(shrub_richness = result)
 
 fun_regsubset(tree_qua_all, "abundance")
@@ -155,43 +155,47 @@ fitbest$tree_abundance <-
   lm(richness ~ land_price + popttotal + 
        agriculture + multi_family_residential + 
        commercial_industrial + institutional + transportation, 
-     data = tree_qua_all)
-fitbest$tree_abundance <- 
-  fun_lmdf(fitbest$tree_abundance)[c("variable", "result")] %>% 
+     data = tree_qua_all) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>%
   rename(tree_abundance  = result)
 
-fun_regsubset(shrub_qua_div, "abundance")
-fitbest_shrub_abund <- 
-  lm(abundance ~ dist_ctr + land_price + PopTTotal +agriculture + residential + 
+fun_regsubset(shrub_qua_all, "abundance")
+fitbest$shrub_abundance <- 
+  lm(abundance ~ dist_ctr + land_price + popttotal +agriculture + residential + 
        multi_family_residential + 
        commercial_industrial + park, 
-     data = shrub_qua_div)
-lmdf_shrub_abund <- fun_lmdf(fitbest_shrub_abund)[c("variable", "result")]
-names(lmdf_shrub_abund)[2] <- "shrub_abund"
+     data = shrub_qua_all) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>%
+  rename(shrub_abund = result)
 
-fun_regsubset(tree_qua_div, "evenness")
-fitbest_tree_even <- 
-  lm(evenness ~ dist_ctr + PopTTotal +agriculture + residential + 
+fun_regsubset(tree_qua_all, "evenness")
+fitbest$tree_evenness <- 
+  lm(evenness ~ dist_ctr + popttotal +agriculture + residential + 
        multi_family_residential + institutional + 
        park +  transportation, 
-     data = tree_qua_div)
-lmdf_tree_even <- fun_lmdf(fitbest_shrub_abund)[c("variable", "result")]
-names(lmdf_tree_even)[2] <- "tree_even"
+     data = tree_qua_all) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>%
+  rename(tree_even = result)
 
-fun_regsubset(shrub_qua_div, "evenness")
-fitbest_shrub_even <- 
-  lm(evenness ~ land_price + PopTTotal +agriculture + residential + 
+fun_regsubset(shrub_qua_all, "evenness")
+fitbest$shrub_evenness <- 
+  lm(evenness ~ land_price + popttotal +agriculture + residential + 
        multi_family_residential + commercial_industrial + institutional + 
        institutional +  transportation, 
-     data = shrub_qua_div)
-lmdf_shrub_even <- fun_lmdf(fitbest_shrub_even)[c("variable", "result")]
-names(lmdf_shrub_even)[2] <- "shrub_even"
+     data = shrub_qua_all) %>% 
+  fun_lmdf() %>% 
+  select(variable, result) %>%
+  rename(shrub_even = result)
 
 fun_merge <- function(x, y) {
   output <- merge(x, y, by = "variable", all = TRUE)
   return(output)
 }
-lmdf <- Reduce(fun_merge, list(lmdf_all_rich, lmdf_tree_rich, lmdf_shrub_rich, 
-                               lmdf_tree_abund, lmdf_shrub_abund, 
-                               lmdf_tree_even, lmdf_shrub_even))
+lmdf <- Reduce(fun_merge, fitbest[!sapply(fitbest, is.null)]) %>% 
+  tibble()
+
 write.xlsx(lmdf, "Out Best lm model.xlsx")
+
