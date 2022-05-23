@@ -1,56 +1,9 @@
 # Settings ----
-faclev_index <- c("abundance", "richness", "shannon", "simpson", "evenness")
+lvl_bd_index <- c("abundance", "richness", "shannon", "simpson", "evenness")
 tree_spe <- unique(tree_data$species_lt)
 shrub_spe <- unique(shrub_data$species_lt)
 
 # Functions ----
-# 函数：构建群落宽数据集
-fun_comm <- function(x, nq_colgroup, nq_colabund) {
-  output <- x %>%
-    select({{nq_colgroup}}, species_lt, {{nq_colabund}}) %>%
-    pivot_wider(names_from = species_lt, values_from = {{nq_colabund}},
-                values_fn = sum, values_fill = 0)
-  return(output)
-}
-
-# 函数：分组计算属性汇总统计值和多样性指数
-fun_div <- function(x, x_comm, nq_colabund, nq_colgroup) {
-  # 内置函数：分组汇总统计各项属性
-  funin_attrcalc <- function(coltar, tarvalue) {
-    x_sub <- x
-    x_sub["tarornot"] <- x_sub[coltar] == tarvalue
-    x_sub <- x_sub %>% group_by({{nq_colgroup}}) %>% 
-      summarise(
-        perc = sum({{nq_colabund}} * tarornot) / sum({{nq_colabund}})) %>%
-      ungroup() %>% 
-      select({{nq_colgroup}}, perc)
-    names(x_sub)[2] <- paste0("perc_", tarvalue)
-    return(x_sub)
-  }
-  
-  perc_planted <- funin_attrcalc("pla_spo", "planted")
-  perc_nonpot <- funin_attrcalc("pla_spo", "non_pot")
-  perc_private <- funin_attrcalc("pla_spo", "private")
-  perc_nonstreet <- funin_attrcalc("pla_spo", "non_street")
-  perc_native <- funin_attrcalc("pla_spo", "native")
-  
-  output <- x_comm %>%
-    mutate(abundance = rowSums(.[3:ncol(.)]),
-           richness = apply(.[2:ncol(.)]>0, 1, sum),
-           shannon = diversity(.[2:ncol(.)], index = "shannon"),
-           simpson = diversity(.[2:ncol(.)], index = "simpson"),
-           evenness = shannon / log(richness)) %>%
-    select({{nq_colgroup}}, 
-           abundance, richness, shannon, simpson, evenness) %>%
-    left_join(perc_planted) %>%
-    left_join(perc_nonpot) %>%
-    left_join(perc_private) %>%
-    left_join(perc_nonstreet) %>%
-    left_join(perc_native)
-  
-  return(output)
-}
-
 # func to plot species accumulation curve and extrapolation 
 # func parameters: x, raw data; y, size of extrapolation; z, extent of x axis; method, plot the curve separately by land use (method = "land_use") or at city level (method = "city")
 fun_accum <- function(x, y, z, method) {
@@ -173,36 +126,12 @@ fun_rank_plot <- function(x, title, method) {
           legend.text = element_text(size = 12))
 }
 
-# Data ----
-tree_lu_comm <- fun_comm(tree_data, landuse, stem)
-tree_lu_div <- fun_div(tree_data, tree_lu_comm, stem, landuse)
-
-tree_qua_comm <- fun_comm(tree_data, qua_id, stem)
-tree_qua_div <- fun_div(tree_data, tree_qua_comm, stem, qua_id)
-tree_qua_all <- tree_qua_comm %>% 
-  left_join(tree_qua_div) %>% 
-  left_join(qua_data)
-
-shrub_lu_comm <- fun_comm(shrub_data, landuse, area)
-shrub_lu_div <- fun_div(shrub_data, shrub_lu_comm, area, landuse)
-
-shrub_qua_comm <- fun_comm(shrub_data, qua_id, area)
-shrub_qua_div <- fun_div(shrub_data, shrub_qua_comm, area, qua_id)
-shrub_qua_all <- shrub_qua_comm %>% 
-  left_join(shrub_qua_div) %>% 
-  left_join(qua_data)
-
-# some other variables 
-number_plant_species <- length(unique(all_plant_data$species_lt))
-number_tree_species <- length(unique(tree_data$species_lt))
-number_shrub_species <- length(unique(shrub_data$species_lt))
-
 # Analysis ----
 ## City level ----
-### Number of species ----
-cat("\n", "total species:", length(unique(all_plant_data$species_lt)), "\n", 
+# Number of species
+cat("total species:", length(unique(all_plant_data$species_lt)), "\n", 
     "total genera:", length(unique(all_plant_data$genus)), "\n", 
-    "total families:", length(unique(all_plant_data$family)), "\n", "\n")
+    "total families:", length(unique(all_plant_data$family)), "\n")
 
 # species accumulation curve 
 # extrapolation up to double the reference sample size
@@ -318,7 +247,7 @@ tree_lu_comm %>%
   vegdist() %>% 
   as.matrix() %>% 
   round(digits = 2) %>% 
-  as_data_frame() %>% 
+  as_tibble() %>% 
   rename_all(~lvl_landuse) %>% 
   mutate(pairs = lvl_landuse) %>% 
   relocate(pairs)
@@ -328,7 +257,7 @@ shrub_lu_comm %>%
   vegdist() %>% 
   as.matrix() %>% 
   round(digits = 2) %>% 
-  as_data_frame() %>% 
+  as_tibble() %>% 
   rename_all(~lvl_landuse) %>% 
   mutate(pairs = lvl_landuse) %>% 
   relocate(pairs)
@@ -347,7 +276,7 @@ fun_occup_df <- function(x){
 }
 
 plant_occup <- ddply(
-  qua_plant_div, .(landuse), y = number_plant_species, fun_occup_rate) %>% 
+  all_qua_div, .(landuse), y = number_plant_species, fun_occup_rate) %>% 
   .[,-1] %>% t() 
 colnames(plant_occup) = lvl_landuse
 (plant_occup_top <- fun_occup_df(plant_occup))
@@ -393,7 +322,7 @@ plant_occup_top %>% pivot_longer(
 
 # Quadrat level ----
 ## richness ~ land use for all plants ----
-ggplot(qua_plant_div) + 
+ggplot(all_qua_div) + 
   geom_boxplot(aes(landuse, richness)) + 
   labs(x = "Land use type", y = "Quadrat richness") + 
   geom_text(data = data.frame(
@@ -402,8 +331,8 @@ ggplot(qua_plant_div) +
   ), aes(x = landuse, y = Inf, label = Label), vjust = 2) + 
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + 
   theme_bw()
-kruskal.test(qua_plant_div$richness ~ qua_plant_div$landuse)
-dunn.test(x = qua_plant_div$richness, g = qua_plant_div$landuse)
+kruskal.test(all_qua_div$richness ~ all_qua_div$landuse)
+dunn.test(x = all_qua_div$richness, g = all_qua_div$landuse)
 
 ## Indexes ~ land use for trees and shrubs ----
 # Kruskal-Wallis test & box plot for trees 
@@ -490,7 +419,7 @@ dunn_df_1 <- rbind(fun_dunn(tree_qua_all, "tree", "abundance"),
 dunn_df_2 <- dunn_df_1[, c("taxa", "index", "comparison_2", "comparison_1", "p")]
 names(dunn_df_2) <- c("taxa", "index", "comparison_1", "comparison_2", "p")
 dunn_df <- rbind(dunn_df_1, dunn_df_2)%>% 
-  mutate(index = factor(index, levels = faclev_index), 
+  mutate(index = factor(index, levels = lvl_bd_index), 
          comparison_1 = factor(comparison_1, lvl_landuse), 
          comparison_2 = factor(comparison_2, lvl_landuse))
 # plot the pairwise test results
@@ -589,8 +518,8 @@ rm(tree_anosim, tree_hulls, tree_mds_meta, tree_mds_selected,
    anosim_pairs, fun_nmds_plot, fun_find_hull, fun_anosim_pairs)
 
 # Cor among the indexes ----
-chart.Correlation(subset(tree_qua_div, select = faclev_index))
-chart.Correlation(subset(shrub_qua_div, select = faclev_index))
+chart.Correlation(subset(tree_qua_div, select = lvl_bd_index))
+chart.Correlation(subset(shrub_qua_div, select = lvl_bd_index))
 
 
 # Data for discussion ----
@@ -599,6 +528,6 @@ tree_qua_all %>% group_by(landuse) %>%
   dplyr::summarise(abundance = mean(abundance), richness = mean(richness))
 
 # means of quadrat abundance and richness for trees
-qua_plant_div %>% group_by(landuse) %>% 
+all_qua_div %>% group_by(landuse) %>% 
   dplyr::summarise(richness = mean(richness))
 
