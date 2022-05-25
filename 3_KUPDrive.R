@@ -1,21 +1,29 @@
+# Statement ----
+# pairwise Pearson correlations between biodiversity indexes and influence factors for plants, trees, and shrubs respectively 
+# get "best linear regression models" between biodiversity indexes and influence factors with all possible regression method 
+
 # Package ----
+source("1_package_and_data.R")
+source("2_biodiversity.R")
+
 library(leaps)
 
 # Data ----
-lvl_drv_fac <- c("dist_ctr", "land_price", "popttotal", 
-             "residential", "transportation", "temple/shrine", 
-             "multi-family residential", "agriculture", 
-             "commercial-neighbor", "water/wetland", "park", 
-             "cemetery", "vacant", "commercial/industrial", "institutional", 
-             "golf course")
+kLvlDrvFac <- 
+  c("dist_ctr", "land_price", "pop_tot", 
+    "agriculture", "water_wetland", "park", "temple_shrine", 
+    "cemetery", "vacant", "golf_course", 
+    "residential", "multi_family residential", "institutional", 
+    "transportation", "commercial_neighbor", "commercial_industrial")
 
-# Pearson correlation between variables and quadrat diversity index ----
-fun_cortest <- function(x, col_dep) {
+# Analysis ----
+## Pearson correlation between biodiversity and indexes ----
+Cortest <- function(x, col_dep) {
   # 建立列表以存储相关分析结果
   cor_res <- vector("list", length = 3)
   
   # 各自变量和因变量的相关性作图和计算
-  for (i in lvl_drv_fac) {
+  for (i in kLvlDrvFac) {
     # 如果样本量大于10则计算，否则直接将结果定为NA
     if(length(na.omit(x[[i]])) > 10) {
       # plot(x[[i]], x[[col_dep]], xlab = i, ylab = col_dep)
@@ -49,52 +57,53 @@ fun_cortest <- function(x, col_dep) {
 }
 
 # 建立列表以储存皮尔森相关性分析结果
-prsn_res <- vector("list", 9)
-names(prsn_res) <- paste(
+prsn.res <- vector("list", 9)
+names(prsn.res) <- paste(
   rep(c("plant", "tree", "shrub"), each = 3), 
   rep(c("richness", "abundance", "evenness"), 3), sep = "_")
 
 # 全体植物皮尔森分析结果
-prsn_res$plant_richness <- 
-  fun_cortest(all_qua_div, "richness")[c("variable", "result")] %>% 
+prsn.res$plant_richness <- 
+  Cortest(qua.div, "richness")[c("variable", "result")] %>% 
   rename(plant_richness = result)
 
 # 乔木皮尔森分析结果
 for (i in c("richness", "abundance", "evenness")) {
-  prsn_res[[paste0("tree_", i)]] <- 
-    fun_cortest(tree_qua_all, i)[c("variable", "result")]
-  names(prsn_res[[paste0("tree_", i)]])[2] <- paste0("tree_", i)
+  prsn.res[[paste0("tree_", i)]] <- 
+    Cortest(qua.tree.comm.div, i)[c("variable", "result")]
+  names(prsn.res[[paste0("tree_", i)]])[2] <- paste0("tree_", i)
 }
 
 # 灌木皮尔森分析结果
 for (i in c("richness", "abundance", "evenness")) {
-  prsn_res[[paste0("shrub_", i)]] <- 
-    fun_cortest(shrub_qua_all, i)[c("variable", "result")]
-  names(prsn_res[[paste0("shrub_", i)]])[2] <- paste0("shrub_", i)
+  prsn.res[[paste0("shrub_", i)]] <- 
+    Cortest(qua.shrub.comm.div, i)[c("variable", "result")]
+  names(prsn.res[[paste0("shrub_", i)]])[2] <- paste0("shrub_", i)
 }
 
 # 合并各项结果
-fun_merge <- function(x, y) {
+Merge <- function(x, y) {
   output <- merge(x, y, by = "variable")
   return(output)
 }
-prsn_res_df <- Reduce(fun_merge, prsn_res[c(1, 4:9)])
+prsn.res <- Reduce(Merge, prsn.res[c(1, 4:9)])
 
-# 输出结果
-write.xlsx(prsn_res_df, "Out prsn_allplant_richness.xlsx")
+# check and output the results 
+prsn.res
+write.xlsx(prsn.res, "ProcData/1Biodiversity/Prsn_plant_indexes.xlsx")
 
-# 全子集回归分析 ----
+## All possible regression for best models ----
 # 备选变量：仅考虑上一步皮尔森检测中数据量大于10个的变量
-fun_regsubset <- function(x, var_response) {
+GetRegSubset <- function(x, var_response) {
   leaps <- regsubsets(
-    richness ~ dist_ctr + land_price + popttotal + agriculture + residential +
+    richness ~ dist_ctr + land_price + pop_tot + agriculture + residential +
       multi_family_residential + commercial_industrial + institutional + park + 
       transportation, data = x)
   plot(leaps, scale = "adjr2", main = var_response)
 }
 
 # 函数：生成结果数据框
-fun_lmdf <- function(x) {
+LmRes2Df <- function(x) {
   ressum <- summary(x)
   ressum <- ressum$coefficients
   # 提取变量名、估计值和p值
@@ -119,83 +128,85 @@ fun_lmdf <- function(x) {
 # 基于选入变量建模
 # 生成空列表以存储各配对最优线性模型
 fitbest <- vector("list", 9)
-names(fitbest) <- names(prsn_res)
+names(fitbest) <- names(prsn.res)
 
 # 生成各数据集各指标最佳模型所选入的变量
 # 基于图像选择最佳模型自变量
-fun_regsubset(all_qua_div, "richness")
+GetRegSubset(qua.div, "richness")
 fitbest$plant_richness <- 
-  lm(richness ~ dist_ctr + popttotal + 
+  lm(richness ~ dist_ctr + pop_tot + 
        agriculture + residential + multi_family_residential + 
-       commercial_industrial, data = all_qua_div) %>% 
-  fun_lmdf() %>% 
+       commercial_industrial, data = qua.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(plant_richness = result)
 
-fun_regsubset(tree_qua_all, "richness")
+GetRegSubset(qua.tree.comm.div, "richness")
 fitbest$tree_richness <- 
-  lm(richness ~ land_price + popttotal + 
+  lm(richness ~ land_price + pop_tot + 
        agriculture + multi_family_residential + 
        commercial_industrial + institutional + transportation, 
-     data = tree_qua_all) %>% 
-  fun_lmdf() %>% 
+     data = qua.tree.comm.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>% 
   rename(tree_richness = result)
 
-fun_regsubset(shrub_qua_all, "richness")
+GetRegSubset(qua.shrub.comm.div, "richness")
 fitbest$shrub_richness <- 
   lm(richness ~ residential + multi_family_residential + commercial_industrial, 
-     data = shrub_qua_all) %>%
-  fun_lmdf() %>% 
+     data = qua.shrub.comm.div) %>%
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(shrub_richness = result)
 
-fun_regsubset(tree_qua_all, "abundance")
+GetRegSubset(qua.tree.comm.div, "abundance")
 fitbest$tree_abundance <- 
-  lm(richness ~ land_price + popttotal + 
+  lm(richness ~ land_price + pop_tot + 
        agriculture + multi_family_residential + 
        commercial_industrial + institutional + transportation, 
-     data = tree_qua_all) %>% 
-  fun_lmdf() %>% 
+     data = qua.tree.comm.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(tree_abundance  = result)
 
-fun_regsubset(shrub_qua_all, "abundance")
+GetRegSubset(qua.shrub.comm.div, "abundance")
 fitbest$shrub_abundance <- 
-  lm(abundance ~ dist_ctr + land_price + popttotal +agriculture + residential + 
+  lm(abundance ~ dist_ctr + land_price + pop_tot +agriculture + residential + 
        multi_family_residential + 
        commercial_industrial + park, 
-     data = shrub_qua_all) %>% 
-  fun_lmdf() %>% 
+     data = qua.shrub.comm.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(shrub_abund = result)
 
-fun_regsubset(tree_qua_all, "evenness")
+GetRegSubset(qua.tree.comm.div, "evenness")
 fitbest$tree_evenness <- 
-  lm(evenness ~ dist_ctr + popttotal +agriculture + residential + 
+  lm(evenness ~ dist_ctr + pop_tot +agriculture + residential + 
        multi_family_residential + institutional + 
        park +  transportation, 
-     data = tree_qua_all) %>% 
-  fun_lmdf() %>% 
+     data = qua.tree.comm.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(tree_even = result)
 
-fun_regsubset(shrub_qua_all, "evenness")
+GetRegSubset(qua.shrub.comm.div, "evenness")
 fitbest$shrub_evenness <- 
-  lm(evenness ~ land_price + popttotal +agriculture + residential + 
+  lm(evenness ~ land_price + pop_tot +agriculture + residential + 
        multi_family_residential + commercial_industrial + institutional + 
        institutional +  transportation, 
-     data = shrub_qua_all) %>% 
-  fun_lmdf() %>% 
+     data = qua.shrub.comm.div) %>% 
+  LmRes2Df() %>% 
   select(variable, result) %>%
   rename(shrub_even = result)
 
-fun_merge <- function(x, y) {
+Merge <- function(x, y) {
   output <- merge(x, y, by = "variable", all = TRUE)
   return(output)
 }
-lmdf <- Reduce(fun_merge, fitbest[!sapply(fitbest, is.null)]) %>% 
+lmdf <- fitbest[!sapply(fitbest, is.null)] %>% 
+  Reduce(Merge, x = .) %>% 
   tibble()
 
-write.xlsx(lmdf, "Out Best lm model.xlsx")
-
+# check and output the results
+lmdf
+write.xlsx(lmdf, "ProcData/1Biodiversity/Best_lm_models.xlsx")
