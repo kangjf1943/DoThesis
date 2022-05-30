@@ -319,7 +319,9 @@ SubBySpecies <- function(var_es, name_gp, name_subgp, num_sample, num_subgp) {
     as.data.frame() %>% 
     subset(Freq >= num_sample)
   # each group with larger than or equal to 3 subgroups
-  var_gp_ct <- var_gp_subgp_ct %>% group_by(Var1) %>% summarise(n = n()) %>% 
+  var_gp_ct <- var_gp_subgp_ct %>% 
+    group_by(Var1) %>% 
+    summarise(n = n()) %>% 
     subset(n >= num_subgp)
   # knock out pairs of group-subgroup with not enough sample size  
   var_gp_subgp_tar <- subset(var_gp_subgp_ct, Var1 %in% var_gp_ct$Var1)
@@ -331,4 +333,4 @@ SubBySpecies <- function(var_es, name_gp, name_subgp, num_sample, num_subgp) {
 SubBySpecies(ind.es, "species", "land_use", 3, 4) %>% 
   split(.$species) %>% 
   lapply(Comparison, kLvlEsAnnual, "land_use") %>% 
-  write.xlsx("Output_Species-specific_comparison.xlsx")
+  write.xlsx("ProcData/2EcoService/Species_specific_comparison.xlsx")
