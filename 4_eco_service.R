@@ -271,10 +271,28 @@ Comparison(ind.es, kLvlEsAnnual, "land_use")
 
 ## Qua structure ~ land use ----
 # test assumption of normality 
-apply(as.data.frame(qua.es[c("dbh", "lai", "treenum")]), 2, 
-      function(x) {shapiro.test(x)$p.value > 0.05})
-apply(as.data.frame(ind.es[c("dbh", "lai")]), 2, 
-      function(x) {shapiro.test(x)$p.value > 0.05})
+for (i in kLvlLanduse) {
+  cat(
+    i, 
+    subset(qua.es, land_use == i) %>%  
+      as.data.frame() %>% 
+      select(dbh, lai, treenum) %>% 
+      apply(., 2, function(x) {shapiro.test(x)$p.value > 0.05}) %>% 
+      sum(), 
+    "\n"
+  )
+}
+for (i in kLvlLanduse) {
+  cat(
+    i, 
+    subset(ind.es, land_use == i) %>%  
+      as.data.frame() %>% 
+      select(dbh, lai) %>% 
+      apply(., 2, function(x) {shapiro.test(x)$p.value > 0.05}) %>% 
+      sum(), 
+    "\n"
+  )
+}
 
 # Kruskal-Wallis rank sum test
 Comparison(qua.es, c("dbh", "lai", "treenum"), "land_use")
