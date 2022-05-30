@@ -190,10 +190,20 @@ ggplot(qua.val.sum, aes(land_use, es_value)) +
 
 ## Quadrat and individual ESs ~ land use ---- 
 # test the assumptions for statistical analysis
-apply(as.data.frame(qua.es[kLvlEsAnnual]), 2, 
-      function(x) {shapiro.test(x)$p.value > 0.05})
-apply(as.data.frame(ind.es[kLvlEsAnnual]), 2, 
-      function(x) {shapiro.test(x)$p.value > 0.05})
+for (i in kLvlLanduse) {
+  cat("\n", i)
+  apply(as.data.frame(qua.es[which(qua.es$land_use == i), kLvlEsAnnual]), 2, 
+        function(x) {shapiro.test(x)$p.value > 0.05}) %>% 
+    sum() %>% 
+    print()
+}
+for (i in kLvlLanduse) {
+  cat("\n", i)
+  apply(as.data.frame(ind.es[which(ind.es$land_use == i), kLvlEsAnnual]), 2, 
+        function(x) {shapiro.test(x)$p.value > 0.05}) %>% 
+    sum() %>% 
+    print()
+}
 
 # function for non-parametric statistical analysis 
 Comparison <- function(var_es, name_depend_var, name_independ_var) {
