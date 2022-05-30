@@ -178,6 +178,13 @@ ggplot(qua.val.sum, aes(land_use, es_value)) +
   labs(x = "Land use", y = "Quadrat ecosystem service values (dollars / year)", 
        fill = "Ecosystem service") + 
   theme_bw()
+# export Excel file for plot in article 
+qua.val.sum %>% 
+  pivot_wider(id_cols = land_use, names_from = es, values_from = es_value) %>% 
+  mutate(land_use = factor(land_use, levels = kLvlLanduse)) %>% 
+  arrange(land_use) %>% 
+  write.xlsx("ProcData/2EcosystemService/Average_value_es.xlsx")
+# proportion of the es values 
 ggplot(qua.val.sum, aes(land_use, es_value)) + 
   geom_bar(aes(fill = es), stat = "identity", position = "fill")
 
