@@ -233,11 +233,9 @@ Comparison <- function(var_es, name_depend_var, name_independ_var) {
     pvalue <- c(pvalue, var_loop_aov_pvalue)
     
     if (var_loop_aov_pvalue < 0.05) {
-      var_loop_tukey <- 
+      var_loop_dunn <- 
         dunn.test(var_es[, var_loop_colname], var_es[, name_independ_var], 
                   method = "Bonferroni")
-      cat("Tukey result: \n")
-      # print(subset(as.data.frame(var_loop_tukey[[1]]), `p adj` < 0.05))
       cat("\n")
       boxplot(var_es[, var_loop_colname] ~ var_es[, name_independ_var], 
                 ylab = var_loop_colname, xlab = "", las = 2, 
@@ -255,7 +253,7 @@ Comparison <- function(var_es, name_depend_var, name_independ_var) {
   par(mfrow = c(1,1))
   
   # data frame of the statistics 
-  output <- data.frame(chi = chi, pvalue = pvalue)
+  output <- data.frame(depend_var = name_depend_var, chi = chi, pvalue = pvalue)
   output$mark <- ""
   output$mark[which(output$pvalue < 0.05)] <- "*"
   output$mark[which(output$pvalue < 0.01)] <- "**"
